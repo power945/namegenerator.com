@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AI Name Generator — Fun & Viral</title>
+<style>
+  :root{--bg:#0b1020;--card:#0f1724;--accent:#60a5fa;--muted:#9aa6bf;--glass:rgba(255,255,255,0.03)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Helvetica,Arial;background:linear-gradient(180deg,#071022,#0b1220);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:24px;min-height:100vh}
+  .wrap{width:100%;max-width:900px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 14px 40px rgba(2,6,23,.6)}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .logo{width:56px;height:56px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent),#22d3ee);font-weight:800}
+  h1{margin:0;font-size:1.1rem}
+  .desc{color:var(--muted);font-size:.9rem}
+  .controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  input[type="text"]{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  select,button{padding:10px;border-radius:10px;border:0;cursor:pointer}
+  button.primary{background:linear-gradient(90deg,var(--accent),#22d3ee);color:#021025;font-weight:700}
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:14px;margin-top:14px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .output{background:var(--glass);padding:12px;border-radius:10px;min-height:180px}
+  .name-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px}
+  .name-item strong{font-size:1rem}
+  .small{font-size:.85rem;color:var(--muted)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit;padding:8px;border-radius:8px}
+  .copy-all{background:rgba(255,255,255,0.04);padding:10px;border-radius:8px;margin-top:8px}
+  .canvas-wrap{display:flex;flex-direction:column;gap:8px}
+  canvas{width:100%;height:300px;border-radius:8px;background:linear-gradient(180deg,#021026,#08122a);border:1px solid rgba(255,255,255,0.03)}
+  footer{margin-top:12px;text-align:center;color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="logo">NG</div>
+            <div>
+              <h1>AI Name Generator</h1>
+              <div class="desc">Type a word → pick a style → get instant AI-style names. Share the funniest one!</div>
+            </div>
+          </div>
+        </div>
+        <div class="small">Single file · Offline-ready</div>
+      </header>
+
+      <div class="controls">
+        <input id="seedInput" type="text" placeholder="Type a name, word or vibe (e.g. 'Chimu')" />
+        <select id="styleSelect" aria-label="Style">
+          <option value="cool">Cool</option>
+          <option value="funny">Funny</option>
+          <option value="fantasy">Fantasy</option>
+          <option value="brand">Brand</option>
+        </select>
+        <button class="primary" id="genBtn">Generate</button>
+      </div>
+
+      <div class="grid">
+        <div>
+          <div class="output" id="output">
+            <div class="small">Suggestions will appear here — click a name to copy it.</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+            <button class="ghost" id="copyAll">Copy All</button>
+            <button class="ghost" id="savePick">Save Favorite</button>
+            <button class="ghost" id="loadLast">Load Last</button>
+          </div>
+        </div>
+
+        <aside class="canvas-wrap">
+          <canvas id="cardCanvas" width="720" height="420"></canvas>
+          <div style="display:flex;gap:8px">
+            <button class="primary" id="downloadCard">Download Name Card</button>
+            <button class="ghost" id="shareText">Copy Share Text</button>
+          </div>
+          <div class="small">Pick one suggestion and press Download to get a shareable PNG</div>
+        </aside>
+      </div>
+
+      <footer>© <span id="year"></span> Viral Tools — made for virality</footer>
+    </div>
+  </div>
+
+<script>
+  // small deterministic hash
+  function hash32(str){
+    let h = 2166136261 >>> 0;
+    for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h,16777619) >>> 0; }
+    return h >>> 0;
+  }
+
+  // generators by style
+  const BANK = {
+    cool: {
+      pre: ["Neo","Hyper","Xeno","Dark","Turbo","Nova","Ultra","Sky","Rift","Zero","Alpha","Vibe","Pulse","Flash","Ion"],
+      suf: ["flux","core","drift","wave","blade","shift","strike","forge","zone","rise","byte","storm","loop","net","labs"]
+    },
+    funny: {
+      pre: ["Silly","Chunky","Bongo","Wobble","Funky","Squee","Mango","Pogo","Noodle","Ducky","Pip","Biscuit","Cheeky","Goober","Zappy"],
+      suf: ["pants","face","muffin","toes","pickle","butt","noodle","saurus","zilla","burger","beans","wiggle","sprout","poof","splash"]
+    },
+    fantasy: {
+      pre: ["Eld","Astra","Lumi","Thorn","Syl","Eri","Val","Aer","Nyx","Orin","Fae","Mira","Zel","Kor","Ryn"],
+      suf: ["wind","shade","mist","song","blade","dawn","star","bane","heart","veil","glen","spark","brook","wyrm","born"]
+    },
+    brand: {
+      pre: ["One","Prime","Blue","Peak","Bright","Core","True","Next","Grow","Wise","Edge","Pure","Root","Cloud","Flow"],
+      suf: ["ly","ify","scape","works","labs","able","mate","hub","ify","io","go","mart","spot","byte","zone"]
+    }
+  };
+
+  const el = id=>document.getElementById(id);
+  el('year').textContent = new Date().getFullYear();
+
+  function generate(seed, style, count=8){
+    seed = (seed||'').trim();
+    const s = style in BANK ? style : 'cool';
+    const rand = hash32(seed + '|' + s);
+    const pre = BANK[s].pre;
+    const suf = BANK[s].suf;
+    const out = [];
+    let r = rand;
+    for(let i=0;i<count;i++){
+      r = (Math.imul(r, 1664525) + 1013904223) >>> 0;
+      const p = pre[r % pre.length];
+      const q = suf[(r >>> 8) % suf.length];
+      let name;
+      // mix strategies
+      if(i % 3 === 0) name = p + q;
+      else if(i % 3 === 1) name = p + "-" + q;
+      else name = q + p;
+      // small variations using seed chars
+      if(i % 5 === 0) name = name + ((r % 10 === 0) ? "" : (r % 99));
+      out.push(name);
+    }
+    return out;
+  }
+
+  function renderList(list){
+    const out = el('output');
+    out.innerHTML = '';
+    list.forEach((n, idx)=>{
+      const item = document.createElement('div');
+      item.className = 'name-item';
+      item.innerHTML = `<strong>${n}</strong><div class="actions"><button class="ghost" data-name="${n}">Copy</button><button class="ghost" data-pick="${n}">Pick</button></div>`;
+      out.appendChild(item);
+    });
+    // wire buttons
+    out.querySelectorAll('button[data-name]').forEach(b=>{
+      b.addEventListener('click', async (ev)=>{
+        const txt = ev.currentTarget.getAttribute('data-name');
+        try{ await navigator.clipboard.writeText(txt); alert('Copied: '+txt); }catch(e){ prompt('Copy:', txt); }
+      });
+    });
+    out.querySelectorAll('button[data-pick]').forEach(b=>{
+      b.addEventListener('click', (ev)=>{
+        const txt = ev.currentTarget.getAttribute('data-pick');
+        pickName(txt);
+      });
+    });
+  }
+
+  el('genBtn').addEventListener('click', ()=>{
+    const seed = el('seedInput').value || '';
+    const style = el('styleSelect').value;
+    const list = generate(seed, style, 8);
+    localStorage.setItem('namegen:last', JSON.stringify({seed,style,list,ts:Date.now()}));
+    renderList(list);
+  });
+
+  el('copyAll').addEventListener('click', async ()=>{
+    const out = Array.from(el('output').querySelectorAll('strong')).map(s=>s.textContent).join('\\n');
+    if(!out) return alert('Nothing to copy');
+    try{ await navigator.clipboard.writeText(out); alert('All copied'); }catch(e){ prompt('Copy all', out); }
+  });
+
+  el('savePick').addEventListener('click', ()=>{
+    const pick = localStorage.getItem('namegen:pick') || '';
+    if(!pick) return alert('Pick a name first (Press Pick on a suggestion).');
+    const arr = JSON.parse(localStorage.getItem('namegen:saved')||'[]');
+    arr.push({name:pick,ts:Date.now()});
+    localStorage.setItem('namegen:saved', JSON.stringify(arr));
+    alert('Saved favorite: ' + pick);
+  });
+
+  el('loadLast').addEventListener('click', ()=>{
+    const last = JSON.parse(localStorage.getItem('namegen:last')||'null');
+    if(!last) return alert('No previous generation found');
+    el('seedInput').value = last.seed;
+    el('styleSelect').value = last.style;
+    renderList(last.list);
+  });
+
+  // canvas card
+  const canvas = el('cardCanvas'); const ctx = canvas.getContext('2d');
+  function pickName(name){
+    localStorage.setItem('namegen:pick', name);
+    drawCard(name);
+    alert('Picked: ' + name + ' — now press Download Name Card or Copy Share Text');
+  }
+
+  function drawCard(name){
+    // simple card
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0,0,W,H);
+    // bg
+    const g = ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,'#0f1724'); g.addColorStop(1,'#071026');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    // title
+    ctx.fillStyle = '#60a5fa'; ctx.font = 'bold 28px Inter, Arial'; ctx.textAlign='left';
+    ctx.fillText('Generated Name', 28, 52);
+    // name big
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 44px Inter, Arial';
+    ctx.fillText(name, 28, 120);
+    // small meta
+    ctx.fillStyle = '#9aa6bf'; ctx.font = '14px Inter, Arial';
+    ctx.fillText('Made with AI Name Generator • ' + new Date().toLocaleString(), 28, H - 28);
+  }
+
+  el('downloadCard').addEventListener('click', ()=>{
+    const pick = localStorage.getItem('namegen:pick');
+    if(!pick) return alert('Pick a name first.');
+    canvas.toBlob((b)=>{
+      const a = document.createElement('a'); a.href = URL.createObjectURL(b);
+      a.download = ('namecard-'+pick.replace(/\\s+/g,'-')+'.png'); a.click(); URL.revokeObjectURL(a.href);
+    });
+  });
+
+  el('shareText').addEventListener('click', async ()=>{
+    const pick = localStorage.getItem('namegen:pick');
+    if(!pick) return alert('Pick a name first.');
+    const txt = `I just generated this name: ${pick} — try it: (link in bio) #AINameGen`;
+    try{ await navigator.clipboard.writeText(txt); alert('Share text copied ✅'); }catch(e){ prompt('Copy share text', txt); }
+  });
+
+  // init: if last exists render
+  (function init(){
+    const last = JSON.parse(localStorage.getItem('namegen:last')||'null');
+    if(last) renderList(last.list);
+    // draw placeholder
+    drawCard('YourNameHere');
+  })();
+</script>
+</body>
+</html>
